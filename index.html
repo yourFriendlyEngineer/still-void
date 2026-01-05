@@ -1,16 +1,17 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>STILL VØID | Index</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <script>
-        // ОТКЛЮЧАЕМ АВТО-СКРОЛЛ БРАУЗЕРА (мы делаем это сами точнее)
+        // DISABLE BROWSER SCROLL RESTORATION
         if ('scrollRestoration' in history) {
             history.scrollRestoration = 'manual';
         }
 
+        // Check return state immediately
         if (sessionStorage.getItem('isReturning') === 'true') {
             document.documentElement.classList.add('returning-visitor');
         }
@@ -80,7 +81,6 @@
         .frame-ui.visible { opacity: 1; pointer-events: auto; }
         html.returning-visitor .frame-ui { transition: opacity 0.8s ease 0.2s !important; }
 
-        /* Align center сохранено для бренда */
         .frame-top { top: 20px; display: flex; justify-content: space-between; align-items: center; }
         .frame-bottom { bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
         .interactive { pointer-events: auto; }
@@ -135,10 +135,8 @@
             list-style: none; padding: 0; margin: 0; width: 100%;
             padding-top: 45vh; padding-bottom: 45vh;
             display: flex; flex-direction: column; align-items: center;
-            /* По умолчанию мышь отключена */
             pointer-events: none; 
         }
-        /* Включается классом */
         .project-list.interactive-ready { pointer-events: auto; }
 
         .project-item {
@@ -182,7 +180,6 @@
             transition: none !important;
         }
 
-        /* Desktop Hover */
         .project-link:hover, .project-link.active { 
             opacity: 1 !important; color: #fff !important; 
             transform: translateX(15px) !important; 
@@ -280,10 +277,11 @@
         const scrollContainer = document.getElementById('scrollContainer');
         const preloader = document.getElementById('preloader');
         
-        const isReturning = sessionStorage.getItem('isReturning') === 'true';
-        // --- FIX: Читаем сохраненный индекс, а не скролл ---
+        let isReturning = sessionStorage.getItem('isReturning') === 'true';
         const savedIndex = parseInt(sessionStorage.getItem('lastActiveIndex') || '0');
-        const isMobile = window.matchMedia("(max-width: 768px)").matches;
+        
+        // --- SAFE MOBILE CHECK ---
+        const isMobile = window.innerWidth < 768;
 
         let imagesLoaded = 0;
         let isInteractionAllowed = false; 
@@ -393,18 +391,24 @@
             });
         }
 
+        // --- BACK BUTTON FAILSAFE ---
+        // Force preloader hide if it gets stuck (network lag or bfcache issues)
+        setTimeout(() => {
+            const pl = document.getElementById('preloader');
+            if(pl && !pl.classList.contains('hide') && isReturning) {
+                startSite();
+            }
+        }, 3000);
+
         function startSite() {
             if (isReturning) {
                 setTimeout(() => { isInteractionAllowed = true; }, 50);
 
                 if (isMobile) {
-                    // --- FIX: SCROLL TO INDEX ---
-                    // Активируем нужный слайд
                     activateSlide(savedIndex);
                     const activeLink = document.getElementById(`link-${savedIndex}`);
                     if(activeLink) activeLink.classList.add('active');
 
-                    // Скроллим к нему принудительно
                     const targetItem = projectList.children[savedIndex];
                     if(targetItem) {
                         targetItem.scrollIntoView({ block: 'center', behavior: 'instant' });
@@ -418,6 +422,7 @@
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         document.querySelector('.curtain').classList.add('lift-up');
+                        document.getElementById('preloader').classList.add('hide'); // Safety
                     });
                 });
 
@@ -425,7 +430,6 @@
                 setTimeout(() => scrollContainer.classList.add('smooth'), 100);
 
             } else {
-                // INTRO
                 isInteractionAllowed = false;
 
                 setTimeout(() => { 
@@ -454,7 +458,6 @@
                         }, idx * 100);
                     });
 
-                    // INSTANT UNLOCK WITH CURTAIN
                     setTimeout(() => {
                         isInteractionAllowed = true;
                         projectList.classList.add('interactive-ready');
@@ -541,10 +544,7 @@
         window.handleNav = function(e, index) {
             e.preventDefault();
             const url = e.currentTarget.getAttribute('data-href');
-            
-            // --- FIX: SAVE INDEX ---
             sessionStorage.setItem('lastActiveIndex', index);
-            
             sessionStorage.setItem('isReturning', 'true');
             const c = document.getElementById('pageCurtain');
             c.classList.remove('lift-up'); c.classList.add('active');
@@ -558,6 +558,15 @@
             panel.classList.toggle('open');
             btn.classList.toggle('active');
         }
+
+        // --- BROWSER BACK BUTTON HANDLING ---
+        // If user hits "Back" from a project, ensuring page is alive
+        window.addEventListener('pageshow', (event) => {
+            // If loaded from bfcache (back button), reload to ensure JS runs fresh
+            if (event.persisted) {
+                window.location.reload(); 
+            }
+        });
     }
 </script>
 </body>

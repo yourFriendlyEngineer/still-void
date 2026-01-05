@@ -80,7 +80,7 @@
             position: relative; flex-shrink: 0;
             height: 70vh; 
             width: auto; 
-            margin: 0 4vw; /* Desktop margins */
+            margin: 0 4vw;
             
             contain: layout paint;
             will-change: transform, opacity;
@@ -90,7 +90,6 @@
             transition: transform 0.6s cubic-bezier(0.2, 1, 0.2, 1), opacity 0.6s ease, filter 0.6s ease;
             
             display: flex; align-items: center; justify-content: center;
-            /* ARTIFACT FIX: No background color, purely transparent */
             background: none; 
         }
 
@@ -112,7 +111,6 @@
             .slide { 
                 margin: 0 10px; 
                 height: auto; 
-                /* Fixed width: screen - 40px (20px each side) */
                 width: calc(100vw - 40px); 
             }
             
@@ -153,6 +151,9 @@
     let slidesData = [];
     let isLoaded = false;
 
+    // --- БЕЗОПАСНАЯ ПРОВЕРКА МОБИЛКИ (без 'matches') ---
+    const checkMobile = () => window.innerWidth < 768;
+
     async function scanFolder() {
         const PROBE_LIMIT = 20; 
         const promises = [];
@@ -187,7 +188,7 @@
     }
 
     function buildStructure(images) {
-        const isMobile = window.innerWidth < 768;
+        const isMobile = checkMobile();
         
         images.forEach(data => {
             const ratio = data.w / data.h;
@@ -196,7 +197,6 @@
             
             let calcWidth;
             if (isMobile) {
-                // Calculation matches CSS: 100vw - 40px
                 calcWidth = window.innerWidth - 40; 
             } else {
                 const vhHeight = window.innerHeight * 0.70;
@@ -227,7 +227,6 @@
         for (let i = 0; i < images.length; i++) {
             const data = slidesData[i];
             const imgObj = new Image();
-            imgObj.crossOrigin = "Anonymous";
             imgObj.src = data.src;
             await new Promise(r => imgObj.onload = r);
             
@@ -243,8 +242,6 @@
             
             canvas.className = 'ready';
             data.el.appendChild(canvas);
-            
-            // Background is already set to 'none' in CSS, so artifacts won't appear
             
             await new Promise(r => requestAnimationFrame(r));
         }
@@ -270,7 +267,14 @@
         loader.style.opacity = '0';
         setTimeout(() => loader.style.display = 'none', 500);
         
-        window.addEventListener('resize', () => { location.reload(); });
+        let lastWidth = window.innerWidth;
+        window.addEventListener('resize', () => { 
+            if (window.innerWidth !== lastWidth) {
+                lastWidth = window.innerWidth;
+                location.reload(); 
+            }
+        });
+
         slidesData.forEach((item, i) => {
             item.el.addEventListener('click', () => { if (!isMovingFast) goToSlide(i); });
         });
@@ -343,6 +347,8 @@
     window.handleExit = function() {
         curtain.classList.remove('open');
         document.body.classList.add('exiting');
+        // Back navigation usually handles history automatically, 
+        // but explicit location change ensures full reload on index
         setTimeout(() => { window.location.href = 'index.html'; }, 900);
     }
 
